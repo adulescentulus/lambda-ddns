@@ -23,22 +23,22 @@ public class UrlController
     private static final Logger LOG               = LoggerFactory.getLogger(UrlController.class);
     private static final String HOSTED_ZONE       = "ddns.networkchallenge.de.";
 
-    public UrlController()
+    public UrlController(RouteUpdater ru)
     {
         LOG.debug("constructor");
         Gson gson = new Gson();
         before(new PasswordFilter(), new DomainFilter());
-        get("/update", UrlController::handleUpdateRequest, gson::toJson);
+        get("/update", (request, response) -> handleUpdateRequest(request, response, ru), gson::toJson);
     }
 
-    public static ResponseObject handleUpdateRequest(Request request, Response response)
+    public static ResponseObject handleUpdateRequest(Request request, Response response, RouteUpdater ru)
     {
         String domain = request.queryParams(HTTP_PARAM_DOMAIN);
 
         ResponseObject.Status status;
         String sourceIp = new IPv4Resolver().fromRequest(request.raw());
         LOG.debug("update with ip:" + sourceIp);
-        status = new RouteUpdater(domain, sourceIp, HOSTED_ZONE).invoke();
+        status = ru.updateFqdnOfZoneWithIp(domain, sourceIp, HOSTED_ZONE);
         if (!ResponseObject.Status.OK.equals(status))
             response.status(HttpStatus.SC_NOT_FOUND);
         return new ResponseObject().setStatus(status);
